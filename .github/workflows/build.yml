@@ -1,0 +1,48 @@
+name: Build Theme Package
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install & Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package
+        run: node scripts/package-zip.mjs
+
+      - name: Rename artifact with sha
+        id: meta
+        run: |
+          HASH=$(git rev-parse --short=7 HEAD)
+          ZIP=$(ls "Komari Home Plus"-v*.zip | head -n1)
+          NEW="${ZIP%.zip}-${HASH}.zip"
+          mv "$ZIP" "$NEW"
+          echo "file=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.file }}
+          path: ${{ steps.meta.outputs.file }}
+          retention-days: 30
